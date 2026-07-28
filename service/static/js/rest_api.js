@@ -85,7 +85,7 @@ $(function () {
 
         let ajax = $.ajax({
             type: "POST",
-            url: "/promotions",
+            url: "/api/promotions",
             contentType: "application/json",
             data: JSON.stringify(data),
         });
@@ -155,7 +155,7 @@ $(function () {
 
         let ajax = $.ajax({
             type: "PUT",
-            url: `/promotions/${promotion_id}`,
+            url: `/api/promotions/${promotion_id}`,
             contentType: "application/json",
             data: JSON.stringify(data)
         });
@@ -185,7 +185,7 @@ $(function () {
 
         let ajax = $.ajax({
             type: "GET",
-            url: `/promotions/${promotion_id}`,
+            url: `/api/promotions/${promotion_id}`,
             contentType: "application/json",
             data: ''
         })
@@ -214,7 +214,7 @@ $(function () {
 
         let ajax = $.ajax({
             type: "GET",
-            url: "/promotions",
+            url: "/api/promotions",
             contentType: "application/json",
             data: ''
         });
@@ -251,7 +251,7 @@ $(function () {
             queryData.promotion_type = promotion_type;
         }
         let queryString = $.param(queryData);
-        let url = queryString ? `/promotions?${queryString}` : "/promotions";
+        let url = queryString ? `/api/promotions?${queryString}` : "/api/promotions";
 
         $("#flash_message").empty();
 
@@ -289,7 +289,7 @@ $(function () {
 
         let ajax = $.ajax({
             type: "PUT",
-            url: `/promotions/${promotion_id}/deactivate`,
+            url: `/api/promotions/${promotion_id}/deactivate`,
             contentType: "application/json",
             data: ""
         });
@@ -318,7 +318,7 @@ $(function () {
 
         let ajax = $.ajax({
             type: "DELETE",
-            url: `/promotions/${promotion_id}`,
+            url: `/api/promotions/${promotion_id}`,
             contentType: "application/json",
             data: "",
         });

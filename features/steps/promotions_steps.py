@@ -25,7 +25,7 @@ def step_impl(context):
     """Delete all promotions and load new ones"""
 
     # Get a list all of the promotions
-    rest_endpoint = f"{context.base_url}/promotions"
+    rest_endpoint = f"{context.base_url}/api/promotions"
     context.resp = requests.get(rest_endpoint, timeout=WAIT_TIMEOUT)
     expect(context.resp.status_code).equal_to(status.HTTP_200_OK)
     for promotion in context.resp.json():
@@ -51,7 +51,7 @@ def step_impl(context):
 @given("there are no promotions")
 def step_no_promotions(context):
     """Delete all promotions"""
-    rest_endpoint = f"{context.base_url}/promotions"
+    rest_endpoint = f"{context.base_url}/api/promotions"
     context.resp = requests.get(rest_endpoint, timeout=WAIT_TIMEOUT)
     expect(context.resp.status_code).equal_to(status.HTTP_200_OK)
     for promotion in context.resp.json():

@@ -31,7 +31,7 @@ from tests.factories import PromotionFactory
 DATABASE_URI = os.getenv(
     "DATABASE_URI", "postgresql+psycopg://postgres:postgres@localhost:5432/testdb"
 )
-BASE_URL = "/promotions"
+BASE_URL = "/api/promotions"
 
 
 ######################################################################
@@ -83,6 +83,47 @@ class TestYourResourceService(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.get_json(), {"status": "OK"})
 
+    def test_swagger_ui(self):
+        """It should display the Swagger UI at /apidocs/"""
+        resp = self.client.get("/apidocs/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn(b"swagger", resp.data.lower())
+
+    def test_swagger_spec_documents_models(self):
+        """It should publish a Swagger spec with the API under /api"""
+        resp = self.client.get("/api/swagger.json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        spec = resp.get_json()
+        self.assertIn("/promotions", spec["paths"])
+        self.assertEqual(spec["basePath"], "/api")
+
+        for model in ("Promotion", "PromotionCreate", "Error", "Message"):
+            self.assertIn(model, spec["definitions"])
+
+    def test_swagger_spec_documents_payloads(self):
+        """It should document request and response payloads with models"""
+        spec = self.client.get("/api/swagger.json").get_json()
+
+        # the request body of a POST is documented by the PromotionCreate model
+        post = spec["paths"]["/promotions"]["post"]
+        body = [p for p in post["parameters"] if p["in"] == "body"][0]
+        self.assertEqual(body["schema"]["$ref"], "#/definitions/PromotionCreate")
+
+        # a 201 returns a single Promotion, a 200 list returns an array of them
+        self.assertEqual(
+            post["responses"]["201"]["schema"]["$ref"], "#/definitions/Promotion"
+        )
+        list_schema = spec["paths"]["/promotions"]["get"]["responses"]["200"]["schema"]
+        self.assertEqual(list_schema["type"], "array")
+        self.assertEqual(list_schema["items"]["$ref"], "#/definitions/Promotion")
+
+        # error payloads are documented too
+        get_by_id = spec["paths"]["/promotions/{promotion_id}"]["get"]
+        self.assertEqual(
+            get_by_id["responses"]["404"]["schema"]["$ref"], "#/definitions/Error"
+        )
+
     def test_create_promotion(self):
         """It should create a promotion and return 201 with a Location header"""
         promotion = PromotionFactory()
@@ -90,7 +131,7 @@ class TestYourResourceService(TestCase):
         payload.pop("id")  # id is assigned by the DB, not provided by the client
 
         resp = self.client.post(
-            "/promotions",
+            BASE_URL,
             json=payload,
             content_type="application/json",
         )
@@ -119,7 +160,7 @@ class TestYourResourceService(TestCase):
     def test_create_promotion_invalid_content_type(self):
         """It should return 415 when Content-Type is not application/json"""
         resp = self.client.post(
-            "/promotions",
+            BASE_URL,
             data="not json",
             content_type="text/plain",
         )
@@ -128,7 +169,7 @@ class TestYourResourceService(TestCase):
     def test_create_promotion_missing_required_field(self):
         """It should return 400 when required fields are missing"""
         resp = self.client.post(
-            "/promotions",
+            BASE_URL,
             json={"discount_value": 10.0},  # missing name and promotion_type
             content_type="application/json",
         )
@@ -137,7 +178,7 @@ class TestYourResourceService(TestCase):
     def test_create_promotion_invalid_promotion_type(self):
         """It should return 400 when promotion_type is not a valid enum value"""
         resp = self.client.post(
-            "/promotions",
+            BASE_URL,
             json={
                 "name": "Bad Type Promo",
                 "promotion_type": "INVALID_TYPE",
@@ -152,7 +193,7 @@ class TestYourResourceService(TestCase):
         promotion = PromotionFactory()
         promotion.create()
 
-        resp = self.client.delete(f"/promotions/{promotion.id}")
+        resp = self.client.delete(f"{BASE_URL}/{promotion.id}")
 
         self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(resp.data, b"")
@@ -160,7 +201,7 @@ class TestYourResourceService(TestCase):
 
     def test_delete_promotion_not_found(self):
         """It should return no content when deleting a missing Promotion"""
-        resp = self.client.delete("/promotions/0")
+        resp = self.client.delete(f"{BASE_URL}/0")
 
         self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(resp.data, b"")
@@ -170,7 +211,7 @@ class TestYourResourceService(TestCase):
         promotion = PromotionFactory()
         promotion.create()
 
-        resp = self.client.get(f"/promotions/{promotion.id}")
+        resp = self.client.get(f"{BASE_URL}/{promotion.id}")
 
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         data = resp.get_json()
@@ -182,7 +223,7 @@ class TestYourResourceService(TestCase):
 
     def test_read_promotion_not_found(self):
         """It should not read a Promotion that does not exist"""
-        resp = self.client.get("/promotions/0")
+        resp = self.client.get(f"{BASE_URL}/0")
 
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
         data = resp.get_json()

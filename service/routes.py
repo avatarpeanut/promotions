@@ -21,13 +21,14 @@ Paths:
 ------
 GET  /               - Displays the UI for testing the service
 GET  /health          - Health endpoint for Kubernetes probes
-GET  /promotions      - Returns a list of all Promotions
-POST /promotions      - Creates a new Promotion
-GET  /promotions/{id} - Returns the Promotion with the given id
-PUT  /promotions/{id} - Updates the Promotion with the given id
-DELETE /promotions/{id} - Deletes the Promotion with the given id
-PUT  /promotions/{id}/deactivate - Deactivates the Promotion with the given id
-DELETE /promotions/reset - Resets the database (test use only)
+GET  /apidocs/        - Displays the Swagger UI for the REST API
+GET  /api/promotions      - Returns a list of all Promotions
+POST /api/promotions      - Creates a new Promotion
+GET  /api/promotions/{id} - Returns the Promotion with the given id
+PUT  /api/promotions/{id} - Updates the Promotion with the given id
+DELETE /api/promotions/{id} - Deletes the Promotion with the given id
+PUT  /api/promotions/{id}/deactivate - Deactivates the Promotion with the given id
+DELETE /api/promotions/reset - Resets the database (test use only)
 """
 
 from flask import jsonify, abort, request, make_response
@@ -68,7 +69,8 @@ api = Api(
     description="This is the Promotion Store server implemented with Flask-RESTX.",
     default="promotions",
     default_label="Promotion service operations",
-    doc="/apidocs",
+    doc="/apidocs/",
+    prefix="/api",
 )
 
 
@@ -78,18 +80,32 @@ api = Api(
 create_model = api.model(
     "PromotionCreate",
     {
-        "name": fields.String(required=True, description="The name of the Promotion"),
+        "name": fields.String(
+            required=True,
+            description="The name of the Promotion",
+            example="Summer Sale",
+        ),
         "promotion_type": fields.String(
             required=True,
             enum=[member.name for member in PromotionType],
             description="The type of the Promotion",
+            example=PromotionType.PERCENT_OFF.name,
         ),
-        "discount_value": fields.Float(
-            description="The discount amount or percentage granted by the Promotion"
+        # Serialized from a Decimal column, so this travels the wire as a
+        # decimal string ("20.00"), not as a JSON number.
+        "discount_value": fields.String(
+            description="The discount amount or percentage granted by the Promotion",
+            example="20.00",
         ),
-        "start_date": fields.Date(description="The date the Promotion becomes active"),
-        "end_date": fields.Date(description="The date the Promotion expires"),
-        "active": fields.Boolean(description="Is the Promotion currently active?"),
+        "start_date": fields.Date(
+            description="The date the Promotion becomes active", example="2026-06-01"
+        ),
+        "end_date": fields.Date(
+            description="The date the Promotion expires", example="2026-06-07"
+        ),
+        "active": fields.Boolean(
+            description="Is the Promotion currently active?", example=True
+        ),
     },
 )
 
@@ -98,7 +114,32 @@ promotion_model = api.inherit(
     create_model,
     {
         "id": fields.Integer(
-            readOnly=True, description="The unique id assigned internally by service"
+            readOnly=True,
+            description="The unique id assigned internally by service",
+            example=1,
+        ),
+    },
+)
+
+message_model = api.model(
+    "Message",
+    {
+        "message": fields.String(
+            description="A human readable status message", example="database reset"
+        ),
+    },
+)
+
+error_model = api.model(
+    "Error",
+    {
+        "status": fields.Integer(description="The HTTP status code", example=404),
+        "error": fields.String(
+            description="The short name of the error", example="Not Found"
+        ),
+        "message": fields.String(
+            description="A human readable explanation of what went wrong",
+            example="Promotion with id '0' was not found.",
         ),
     },
 )
@@ -133,7 +174,7 @@ def check_content_type(media_type):
 
 
 ######################################################################
-#  PATH: /promotions/{id}
+#  PATH: /api/promotions/{id}
 ######################################################################
 @api.route("/promotions/<int:promotion_id>")
 @api.param("promotion_id", "The Promotion identifier")
@@ -142,16 +183,17 @@ class PromotionResource(Resource):
     PromotionResource class
 
     Allows the manipulation of a single Promotion
-    GET /promotions/{id} - Returns a Promotion with the id
-    PUT /promotions/{id} - Update a Promotion with the id
-    DELETE /promotions/{id} - Deletes a Promotion with the id
+    GET /api/promotions/{id} - Returns a Promotion with the id
+    PUT /api/promotions/{id} - Update a Promotion with the id
+    DELETE /api/promotions/{id} - Deletes a Promotion with the id
     """
 
     # ------------------------------------------------------------------
     # RETRIEVE A PROMOTION
     # ------------------------------------------------------------------
     @api.doc("get_promotions")
-    @api.response(404, "Promotion not found")
+    @api.response(200, "Promotion returned", promotion_model)
+    @api.response(404, "Promotion not found", error_model)
     def get(self, promotion_id):
         """
         Retrieve a single Promotion
@@ -173,9 +215,10 @@ class PromotionResource(Resource):
     # UPDATE AN EXISTING PROMOTION
     # ------------------------------------------------------------------
     @api.doc("update_promotions")
-    @api.response(404, "Promotion not found")
-    @api.response(400, "The posted Promotion data was not valid")
-    @api.response(415, "Content-Type was not application/json")
+    @api.response(200, "Promotion updated", promotion_model)
+    @api.response(404, "Promotion not found", error_model)
+    @api.response(400, "The posted Promotion data was not valid", error_model)
+    @api.response(415, "Content-Type was not application/json", error_model)
     @api.expect(promotion_model)
     def put(self, promotion_id):
         """Updates an existing Promotion"""
@@ -217,7 +260,7 @@ class PromotionResource(Resource):
 
 
 ######################################################################
-#  PATH: /promotions
+#  PATH: /api/promotions
 ######################################################################
 @api.route("/promotions", strict_slashes=False)
 class PromotionCollection(Resource):
@@ -227,7 +270,8 @@ class PromotionCollection(Resource):
     # LIST ALL PROMOTIONS
     # ------------------------------------------------------------------
     @api.doc("list_promotions")
-    @api.expect(promotion_args)
+    @api.expect(promotion_args, validate=False)
+    @api.response(200, "Promotion list returned", [promotion_model])
     def get(self):
         """Returns a list of all Promotions, optionally filtered by query params"""
         app.logger.info("Request for promotion list")
@@ -256,8 +300,9 @@ class PromotionCollection(Resource):
     # CREATE A NEW PROMOTION
     # ------------------------------------------------------------------
     @api.doc("create_promotions")
-    @api.response(400, "The posted data was not valid")
-    @api.response(415, "Content-Type was not application/json")
+    @api.response(201, "Promotion created", promotion_model)
+    @api.response(400, "The posted data was not valid", error_model)
+    @api.response(415, "Content-Type was not application/json", error_model)
     @api.expect(create_model)
     def post(self):
         """Create a new Promotion"""
@@ -280,7 +325,7 @@ class PromotionCollection(Resource):
 
 
 ######################################################################
-#  PATH: /promotions/{id}/deactivate
+#  PATH: /api/promotions/{id}/deactivate
 ######################################################################
 @api.route("/promotions/<int:promotion_id>/deactivate")
 @api.param("promotion_id", "The Promotion identifier")
@@ -288,7 +333,8 @@ class DeactivateResource(Resource):
     """Deactivate action on a Promotion"""
 
     @api.doc("deactivate_promotions")
-    @api.response(404, "Promotion not found")
+    @api.response(200, "Promotion deactivated", promotion_model)
+    @api.response(404, "Promotion not found", error_model)
     def put(self, promotion_id):
         """Deactivate a Promotion"""
         app.logger.info("Request to deactivate Promotion with id: %s", promotion_id)
@@ -308,13 +354,14 @@ class DeactivateResource(Resource):
 
 
 ######################################################################
-#  PATH: /promotions/reset (test use only)
+#  PATH: /api/promotions/reset (test use only)
 ######################################################################
 @api.route("/promotions/reset")
 class ResetResource(Resource):
     """Resets the database (test use only)"""
 
     @api.doc("reset_promotions")
+    @api.response(200, "Database reset", message_model)
     def delete(self):
         """Resets the database for testing — should be disabled in production"""
         db.session.query(Promotion).delete()

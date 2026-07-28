@@ -36,14 +36,19 @@ Example JSON payload:
 
 ## REST API
 
+The REST API is served under the `/api` prefix and documented with Swagger. Interactive documentation is available at `/apidocs/`, and the raw OpenAPI spec at `/api/swagger.json`.
+
 | Method | Endpoint | Description | Request Body |
 | --- | --- | --- | --- |
-| `GET` | `/` | Service information and links | None |
-| `POST` | `/promotions` | Create a promotion | Promotion JSON |
-| `GET` | `/promotions` | List promotions | None |
-| `GET` | `/promotions/<id>` | Read a promotion by ID | None |
-| `PUT` | `/promotions/<id>` | Update a promotion by ID | Promotion JSON |
-| `DELETE` | `/promotions/<id>` | Delete a promotion by ID | None |
+| `GET` | `/` | Admin UI for the service | None |
+| `GET` | `/health` | Health check for Kubernetes probes | None |
+| `GET` | `/apidocs/` | Swagger UI documentation | None |
+| `POST` | `/api/promotions` | Create a promotion | Promotion JSON |
+| `GET` | `/api/promotions` | List promotions (filter by `name` or `promotion_type`) | None |
+| `GET` | `/api/promotions/<id>` | Read a promotion by ID | None |
+| `PUT` | `/api/promotions/<id>` | Update a promotion by ID | Promotion JSON |
+| `DELETE` | `/api/promotions/<id>` | Delete a promotion by ID | None |
+| `PUT` | `/api/promotions/<id>/deactivate` | Deactivate a promotion | None |
 
 All API responses, including error responses, should be returned as JSON except successful `DELETE` responses, which return `204 No Content`.
 
