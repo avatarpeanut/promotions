@@ -25,6 +25,8 @@ spec:
         value: $(tt.params.git-repo-name)
       - name: GIT_REPO
         value: $(tt.params.git-repo-url)
+      - name: GIT_REF
+        value: $(tt.params.git-revision)
       - name: IMAGE_NAME
         value: image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/$(tt.params.git-repo-name):$(tt.params.git-revision)
       workspaces:
