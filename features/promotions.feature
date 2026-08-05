@@ -105,7 +105,6 @@ Feature: Promotions API
   # Read Promotion
   # ---------------------------------------------------------------
 
-  @wip
   Scenario: Read an existing promotion
     Given the following promotions
       | name        | promotion_type | discount_value | start_date | end_date   |
@@ -114,13 +113,12 @@ Feature: Promotions API
     And I set the "Promotion ID" to the last created promotion ID
     And I press the "Retrieve" button
     Then I should see "Summer Sale" in the "Name" field
-    And I should see "PERCENT_OFF" in the "Type" dropdown
+    And I should see "Percent Off" in the "Type" dropdown
     And I should see the message "Success"
 
-  @wip
   Scenario: Read a promotion that does not exist
     When I visit the "Home Page"
-    And I set the "Promotion ID" to "0"
+    And I set the "Id" to "0"
     And I press the "Retrieve" button
     Then I should see the message "Not Found"
 

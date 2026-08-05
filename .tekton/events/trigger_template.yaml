@@ -29,6 +29,8 @@ spec:
         value: $(tt.params.git-revision)
       - name: IMAGE_NAME
         value: image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/$(tt.params.git-repo-name):$(tt.params.git-revision)
+      - name: BASE_URL
+        value: 'https://promotionservice-jc10119-dev.apps.rm2.thpm.p1.openshiftapps.com/'
       workspaces:
       - name: pipeline-workspace
         persistentVolumeClaim:
